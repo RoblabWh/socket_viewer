@@ -39,7 +39,7 @@
     let socket = io();
 
     socket.on("map_publish", function (msg) {
-      receiveProtobuf(msg)
+      receivePart(msg)
     });
 
     let ctx = document.getElementById('thumb').getContext('2d');

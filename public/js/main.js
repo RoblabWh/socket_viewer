@@ -291,6 +291,31 @@ function initProtobuf() {
     });
 }
 
+let transmissionInProgress = false;
+let msgData = "";
+function receivePart(msg) {
+    if (transmissionInProgress) {
+        if (msg == "FINISH_TRANSMISSION") {
+            transmissionInProgress = false;
+            receiveProtobuf(msgData);
+            msgData = "";
+        }
+        else {
+            msgData += msg;
+        }
+    }
+    else {
+        if (msg == "START_TRANSMISSION") {
+            transmissionInProgress = true;
+        }
+        else {
+            transmissionInProgress = false;
+            msgData = "";
+            console.warn("Transmission state missmatch. Resetting transmission, some data might be lost.");
+        }
+    }
+}
+
 function receiveProtobuf(msg) {
     if (msg.length == 0 || mapSegment == undefined) {
         return;
