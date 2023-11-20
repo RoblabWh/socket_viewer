@@ -18,11 +18,13 @@ let property = {
     CameraMode: 'Follow',
     FixAngle: true,
     LandmarkSize: 0.6,
+    DensePointSize: 0.6,
     KeyframeSize: 0.5,
     CurrentFrameSize: 1.0,
     DrawGraph: true,
     DrawGrid: true,
     DrawPoints: true,
+    DrawDensePoints: true,
     LocalizationMode: false,
     ResetSignal: function () { },
     StopSignal: function () { }
@@ -36,6 +38,7 @@ let cameraFrames = new CameraFrames();
 
 let pointUpdateFlag = false;
 let pointCloud = new PointCloud();
+let densePointCloud = new PointCloud();
 
 let grid;
 
@@ -131,6 +134,7 @@ function render() {
     graphicStats.update();
 
     pointCloud.updatePointInScene(scene);
+    densePointCloud.updatePointInScene(scene);
 
     cameraFrames.updateFramesInScene(scene);
 
@@ -154,12 +158,14 @@ function initGui() {
     gui.add(property, 'CameraMode', ['Above', 'Follow', 'Bird', 'Subjective']).onChange(setCameraMode);
     gui.add(property, 'FixAngle').onChange(toggleFixAngle);
     gui.add(property, 'LandmarkSize', 0, 4, 0.1).onChange(setPointSize);
+    gui.add(property, 'DensePointSize', 0, 4, 0.1).onChange(setDensePointSize);
     gui.add(property, 'KeyframeSize', 0, 4, 0.1).onChange(setKeyframeSize);
     gui.add(property, 'CurrentFrameSize', 0, 4, 0.1).onChange(setCurrentframeSize);
     gui.add(camera, 'far', 1000, 1000000, 1000).onChange(setFar);
     gui.add(property, 'DrawGraph').onChange(setGraphVis);
     gui.add(property, 'DrawGrid').onChange(setGridVis);
     gui.add(property, 'DrawPoints').onChange(setPointsVis);
+    gui.add(property, 'DrawDensePoints').onChange(setDensePointsVis);
     gui.add(property, 'LocalizationMode').onChange(setLocalizationMode);
     gui.add(property, 'ResetSignal').domElement.children[0].innerHTML = "<button onclick='onClickReset()'>reset</button>";
     gui.add(property, 'StopSignal').domElement.children[0].innerHTML = "<button onclick='onClickTerminate()'>terminate</button>";
@@ -181,6 +187,10 @@ function setPointSize(val) {
     val = Math.pow(2, val);
     pointCloud.setPointSize(val);
 }
+function setDensePointSize(val) {
+    val = Math.pow(2, val);
+    densePointCloud.setPointSize(val);
+}
 function setKeyframeSize(val) {
     val = Math.pow(2, val);
     cameraFrames.setKeyframeSize(val);
@@ -200,6 +210,9 @@ function setGridVis(val) {
 }
 function setPointsVis(val) {
     pointCloud.setPointsVisibility(val);
+}
+function setDensePointsVis(val) {
+    densePointCloud.setPointsVisibility(val);
 }
 function setLocalizationMode(val) {
     if (val == true) {
@@ -228,7 +241,7 @@ function array2mat44(mat, array) {
         mat.push(raw);
     }
 }
-function loadProtobufData(obj, keyframes, edges, points, referencePointIds, currentFramePose) {
+function loadProtobufData(obj, keyframes, edges, points, referencePointIds, densePoints, currentFramePose) {
     for (let keyframeObj of obj.keyframes) {
         let keyframe = {};
         keyframe["id"] = keyframeObj.id;
@@ -253,6 +266,15 @@ function loadProtobufData(obj, keyframes, edges, points, referencePointIds, curr
     for (let id of obj.localLandmarks) {
         referencePointIds.push(id);
     }
+    for (let densePointObj of obj.densePoints) {
+        let densePoint = {};
+        densePoint["id"] = densePointObj.id;
+        if (densePointObj.coords.length != 0) {
+            densePoint["point_pos"] = densePointObj.coords;
+            densePoint["rgb"] = densePointObj.color;
+        }
+        densePoints.push(densePoint);
+    }
     array2mat44(currentFramePose, obj.currentFrame.pose);
 
 }
@@ -276,6 +298,7 @@ function receiveProtobuf(msg) {
     let edges = [];
     let points = [];
     let referencePointIds = [];
+    let densePoints = [];
     let currentFramePose = [];
 
     let buffer = base64ToUint8Array(msg);
@@ -285,8 +308,8 @@ function receiveProtobuf(msg) {
         removeAllElements();
     }
     else {
-        loadProtobufData(obj, keyframes, edges, points, referencePointIds, currentFramePose);
-        updateMapElements(msg.length, keyframes, edges, points, referencePointIds, currentFramePose);
+        loadProtobufData(obj, keyframes, edges, points, referencePointIds, densePoints, currentFramePose);
+        updateMapElements(msg.length, keyframes, edges, points, referencePointIds, densePoints, currentFramePose);
     }
 }
 function base64ToUint8Array(base64) {
@@ -299,7 +322,7 @@ function base64ToUint8Array(base64) {
     return bytes;
 }
 
-function updateMapElements(msgSize, keyframes, edges, points, referencePointIds, currentFramePose) {
+function updateMapElements(msgSize, keyframes, edges, points, referencePointIds, densePoints, currentFramePose) {
     trackStats.update();
     cameraFrames.updateCurrentFrame(currentFramePose);
     viewControls.setCurrentIntrinsic(currentFramePose);
@@ -323,6 +346,21 @@ function updateMapElements(msgSize, keyframes, edges, points, referencePointIds,
             pointCloud.updatePoint(id, x, y, z, r, g, b);
         }
     }
+    for (let point of densePoints) {
+        let id = point["id"];
+        if (point["point_pos"] == undefined) {
+            densePointCloud.removePoint(id);
+        }
+        else {
+            let x = point["point_pos"][0] * GLOBAL_SCALE;
+            let y = point["point_pos"][1] * GLOBAL_SCALE;
+            let z = point["point_pos"][2] * GLOBAL_SCALE;
+            let r = point["rgb"][0];
+            let g = point["rgb"][1];
+            let b = point["rgb"][2];
+            densePointCloud.updatePoint(id, x, y, z, r, g, b);
+        }
+    }
     for (let keyframe of keyframes) {
         let id = keyframe["id"];
         if (keyframe["camera_pose"] == undefined) {
@@ -344,7 +382,8 @@ function updateMapElements(msgSize, keyframes, edges, points, referencePointIds,
         //viewControls.updateSmoothness(fps);
         console.log(("         " + parseInt(msgSize / 1000)).substr(-6) + " KB"
             + ("     " + (fps).toFixed(1)).substr(-7) + " fps, "
-            + ("         " + pointCloud.nValidPoint).substr(-6) + " pts, "
+            + ("         " + pointCloud.nValidPoint).substr(-6) + " lms, "
+            + ("         " + densePointCloud.nValidPoint).substr(-6) + " pts, "
             + ("         " + cameraFrames.numValidKeyframe).substr(-6) + " kfs");
     }
     receiveTimestamp = currentMillis;
@@ -359,6 +398,12 @@ function removeAllElements() {
             continue;
         }
         pointCloud.removePoint(id);
+    }
+    for (let id in densePointCloud.vertexIds) {
+        if (id < 0 || id == undefined) {
+            continue;
+        }
+        densePointCloud.removePoint(id);
     }
     for (let id in cameraFrames.keyframeIndices) {
         if (id < 0 || id == undefined) {

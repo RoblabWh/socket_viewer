@@ -35,4 +35,5 @@ message map {
     repeated landmark landmarks = 4;
     repeated uint32 local_landmarks = 5;
     repeated msg messages = 6;
+    repeated landmark dense_points = 7;
 }
