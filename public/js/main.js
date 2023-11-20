@@ -15,12 +15,13 @@ const REFERENCE_POINT_COLOR = [255, 0, 0];
 let receiveTimestamp = 0;
 
 let property = {
-    CameraMode: 'Follow',
+    CameraMode: 'Bird',
     FixAngle: true,
     LandmarkSize: 0.6,
     DensePointSize: 0.6,
     KeyframeSize: 0.5,
     CurrentFrameSize: 1.0,
+    PreviewSize: 1.0,
     DrawGraph: true,
     DrawGrid: true,
     DrawPoints: true,
@@ -161,6 +162,7 @@ function initGui() {
     gui.add(property, 'DensePointSize', 0, 4, 0.1).onChange(setDensePointSize);
     gui.add(property, 'KeyframeSize', 0, 4, 0.1).onChange(setKeyframeSize);
     gui.add(property, 'CurrentFrameSize', 0, 4, 0.1).onChange(setCurrentframeSize);
+    gui.add(property, 'PreviewSize', 0, 4, 0.1).onChange(setPreviewSize).listen();
     gui.add(camera, 'far', 1000, 1000000, 1000).onChange(setFar);
     gui.add(property, 'DrawGraph').onChange(setGraphVis);
     gui.add(property, 'DrawGrid').onChange(setGridVis);
@@ -439,10 +441,8 @@ function onResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-let thumbEnlarge = false; // if thumbnail is clicked, that is enlarged and this flag is set
-const THUMB_SCALING = 3; // thumbnail scaling magnification
-const THUMB_HEIGHT = 96; // normally thumbnail height (width is doubled height)
-const CANVAS_SIZE = [1024, 500]; // thumbnail image resolution
+const THUMB_HEIGHT = 144; // normally thumbnail height (width is doubled height)
+const CANVAS_SIZE = [1440, 720]; // thumbnail image resolution
 function initTumbnail() {
     let thumb = document.getElementById("thumb");
     thumb.style.width = THUMB_HEIGHT * 2 + 'px';
@@ -456,14 +456,19 @@ function initTumbnail() {
 }
 function onThumbClick() {
 
-    thumbEnlarge = !thumbEnlarge; // inverse flag
-    if (!thumbEnlarge) {
-        document.getElementById("thumb").style.transform = 'translate(0px, 0px) scale(1)';
+    if (property.PreviewSize != 1) {
+        property.PreviewSize = 1;
     }
     else {
-        let x = THUMB_HEIGHT * (THUMB_SCALING - 1);
-        let y = THUMB_HEIGHT / 2 * (THUMB_SCALING - 1);
-        document.getElementById("thumb").style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(' + THUMB_SCALING + ')';
+        property.PreviewSize = 3;
     }
+    setPreviewSize(property.PreviewSize)
+
+}
+function setPreviewSize(val) {
+
+    let x = THUMB_HEIGHT * (val - 1);
+    let y = -THUMB_HEIGHT / 2 * (val - 1);
+    document.getElementById("thumb").style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(' + val + ')';
 
 }
