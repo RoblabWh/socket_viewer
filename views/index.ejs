@@ -11,6 +11,7 @@
   <script type="text/javascript" src="js/Mouse.js"></script>
   <script type="text/javascript" src="js/PointCloud.js"></script>
   <script type="text/javascript" src="js/CameraFrames.js"></script>
+  <script type="text/javascript" src="js/Raycaster.js"></script>
 
   <style>
     body {
@@ -34,23 +35,19 @@
   <div id="WebGL-output">
   </div>
   <script type="text/javascript" src="js/main.js"></script>
+  <script type="text/javascript" src="js/Transmission.js"></script>
   <script type="text/javascript" src="/socket.io/socket.io.js"></script>
   <script>
     let socket = io();
+    let map_transmission = new Transmission(receiveProtobuf);
+    let frame_transmission = new Transmission(receiveFrame);
 
     socket.on("map_publish", function (msg) {
-      receivePart(msg)
+      map_transmission.receive(msg);
     });
 
-    let ctx = document.getElementById('thumb').getContext('2d');
     socket.on("frame_publish", function (msg) {
-      if (msg.image) {
-        let img = new Image();
-        img.src = 'data:image/jpeg;base64,' + msg.buffer;
-        img.onload = function () {
-          ctx.drawImage(img, 0, 0, this.width, this.height, 0, 0, CANVAS_SIZE[0], CANVAS_SIZE[1]);
-        }
-      }
+      frame_transmission.receive(msg);
     });
 
     // load main function

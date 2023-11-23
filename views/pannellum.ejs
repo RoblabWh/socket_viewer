@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>PannellumViewer</title>
+        <script type="text/javascript" src="js/main.js"></script>
+        <script type="text/javascript" src="js/Transmission.js"></script>
+        <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+        <script type="text/javascript" src="js/lib/pannellum.min.js"></script>
+        <link rel="stylesheet" href="css/lib/pannellum.min.css">
+
+        <style>
+            body {
+                margin: 0;
+                overflow: hidden;
+            }
+
+            #panorama {
+                width: 100vw;
+                height: 100vh;
+            }
+        </style>
+    </head>
+    <body>
+    <div id="panorama"></div>
+    <script>
+        let socket = io();
+
+        let keyframe_transmission = new Transmission(receiveKeyframe);
+            socket.on("keyframe_publish", function (msg) {
+            keyframe_transmission.receive(msg);
+        });
+
+        const keyframeId = new URLSearchParams(window.location.search).get('keyframeId');
+        socket.emit("signal", "getKeyframe_".concat(keyframeId));
+
+        function receiveKeyframe(msg) {
+            pannellum.viewer('panorama', {
+                "type": "equirectangular",
+                "autoLoad": true,
+                "showControls":  true,
+                "panorama": 'data:image/jpeg;base64,' + msg
+            }); 
+            socket.disconnect(); 
+        } 
+    </script>
+    </body>
+</html>

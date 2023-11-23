@@ -16,6 +16,10 @@ app.get("/", function (req, res) {
   res.render("index.ejs");
 });
 
+app.get("/pannellum", function (req, res) {
+  res.render("pannellum.ejs");
+});
+
 io_server.on("connection", function (socket) {
   console.log(`Connected - ID: ${socket.id}`);
 
@@ -24,7 +28,11 @@ io_server.on("connection", function (socket) {
   });
 
   socket.on("frame_publish", function (msg) {
-    io_publisher.emit("frame_publish", { image: true, buffer: msg });
+    io_publisher.emit("frame_publish", msg);
+  });
+
+  socket.on("keyframe_publish", function (msg) {
+    io_publisher.emit("keyframe_publish", msg);
   });
 
   socket.on("disconnect", function () {

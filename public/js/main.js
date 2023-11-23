@@ -27,6 +27,7 @@ let property = {
     DrawPoints: true,
     DrawDensePoints: true,
     LocalizationMode: false,
+    OpenPannellum: false,
     ResetSignal: function () { },
     StopSignal: function () { }
 };
@@ -169,6 +170,7 @@ function initGui() {
     gui.add(property, 'DrawPoints').onChange(setPointsVis);
     gui.add(property, 'DrawDensePoints').onChange(setDensePointsVis);
     gui.add(property, 'LocalizationMode').onChange(setLocalizationMode);
+    gui.add(property, 'OpenPannellum').onChange(setOpenPannellum);
     gui.add(property, 'ResetSignal').domElement.children[0].innerHTML = "<button onclick='onClickReset()'>reset</button>";
     gui.add(property, 'StopSignal').domElement.children[0].innerHTML = "<button onclick='onClickTerminate()'>terminate</button>";
 }
@@ -223,6 +225,8 @@ function setLocalizationMode(val) {
     else {
         socket.emit("signal", "enable_mapping_mode");
     }
+}
+function setOpenPannellum(val) {
 }
 function onClickReset() {
     socket.emit("signal", "reset");
@@ -291,28 +295,12 @@ function initProtobuf() {
     });
 }
 
-let transmissionInProgress = false;
-let msgData = "";
-function receivePart(msg) {
-    if (transmissionInProgress) {
-        if (msg == "FINISH_TRANSMISSION") {
-            transmissionInProgress = false;
-            receiveProtobuf(msgData);
-            msgData = "";
-        }
-        else {
-            msgData += msg;
-        }
-    }
-    else {
-        if (msg == "START_TRANSMISSION") {
-            transmissionInProgress = true;
-        }
-        else {
-            transmissionInProgress = false;
-            msgData = "";
-            console.warn("Transmission state missmatch. Resetting transmission, some data might be lost.");
-        }
+function receiveFrame(msg) {
+    let ctx = document.getElementById('thumb').getContext('2d');
+    let img = new Image();
+    img.src = 'data:image/jpeg;base64,' + msg;
+    img.onload = function () {
+        ctx.drawImage(img, 0, 0, this.width, this.height, 0, 0, CANVAS_SIZE[0], CANVAS_SIZE[1]);
     }
 }
 
